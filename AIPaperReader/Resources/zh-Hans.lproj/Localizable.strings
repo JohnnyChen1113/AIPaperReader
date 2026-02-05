@@ -1,0 +1,119 @@
+/* General */
+"app_name" = "AIPaperReader";
+"app_subtitle" = "AI 驱动的学术论文阅读助手";
+"error" = "错误";
+"ok" = "确定";
+"cancel" = "取消";
+
+/* Menu */
+"menu_open" = "打开...";
+"menu_zoom_in" = "放大";
+"menu_zoom_out" = "缩小";
+"menu_actual_size" = "实际大小";
+"menu_find" = "查找...";
+"menu_toggle_chat" = "切换聊天面板";
+
+"lang_system" = "跟随系统";
+
+/* Welcome View */
+"welcome_open_pdf" = "打开 PDF 文件";
+"welcome_drag_drop" = "或将 PDF 文件拖放到此处";
+"welcome_shortcuts" = "快捷键";
+"shortcut_open" = "打开文件";
+"shortcut_search" = "搜索";
+"shortcut_zoom" = "放大/缩小";
+"shortcut_chat" = "切换聊天面板";
+"shortcut_settings" = "设置";
+
+/* Setup */
+"setup_required_title" = "需要配置大模型";
+"setup_required_desc" = "配置后即可使用 AI 问答功能";
+"setup_button_configure" = "立即配置";
+"setup_configured_title" = "大模型已配置";
+"setup_button_change" = "修改";
+
+/* PDF Reader Context Menu */
+"ctx_translate" = "翻译成中文";
+"ctx_explain" = "解释这段内容";
+"ctx_summarize" = "总结主旨";
+"ctx_search" = "网页搜索";
+"ctx_copy" = "复制";
+"ctx_delete_annotation" = "删除此标注";
+"ctx_highlight" = "高亮";
+"ctx_underline" = "下划线";
+"ctx_strikethrough" = "删除线";
+"ctx_ai_assist" = "AI 助手";
+"ctx_search_prefix" = "搜索";
+"ctx_select_all" = "全选";
+"ctx_clear_annotations" = "清除所有标注";
+
+/* Colors */
+"color_yellow" = "黄色";
+"color_red" = "红色";
+"color_orange" = "橙色";
+"color_green" = "绿色";
+"color_cyan" = "青色";
+"color_blue" = "蓝色";
+"color_purple" = "紫色";
+"color_pink" = "粉色";
+
+/* Underline Styles */
+"style_single" = "单下划线";
+"style_double" = "双下划线";
+"style_thick" = "粗下划线";
+"style_dashed" = "虚线";
+"style_wavy" = "波浪线";
+
+/* Chat Panel */
+"chat_title" = "AI 对话";
+"chat_settings" = "设置";
+"chat_clear" = "清空对话";
+"chat_preset_title" = "试试这些常用问题：";
+"chat_empty_doc" = "打开 PDF 开始对话";
+"chat_empty_doc_desc" = "打开文档后，你可以向 AI 提问关于论文内容的问题";
+"chat_quick_actions" = "自定义快捷操作";
+"chat_done" = "完成";
+"chat_builtin_questions" = "内置问题";
+"chat_builtin_desc" = "内置问题不可删除或修改";
+"chat_custom_questions" = "自定义问题";
+"chat_no_custom" = "暂无自定义问题";
+"chat_add_new" = "添加新问题";
+"chat_enter_new" = "输入新的快捷问题...";
+"chat_add_desc" = "添加常用的问题，方便快速提问";
+
+/* Sidebar */
+"sidebar_thumbnails" = "缩略图";
+"sidebar_outline" = "大纲";
+
+/* Toolbar */
+"toolbar_toggle_sidebar" = "切换侧边栏";
+"toolbar_page_fmt" = "第 %d 页，共 %d 页";
+"toolbar_zoom_out" = "缩小 (⌘-)";
+"toolbar_zoom_in" = "放大 (⌘+)";
+"toolbar_zoom_fit" = "适应屏幕";
+"toolbar_prev_page" = "上一页";
+"toolbar_next_page" = "下一页";
+"toolbar_search_tooltip" = "搜索 (⌘F)";
+"toolbar_search_placeholder" = "查找内容...";
+"toolbar_done" = "完成";
+
+/* Settings */
+"llm_settings_title" = "大模型配置";
+"llm_settings_desc" = "配置用于对话的大语言模型。";
+"llm_provider" = "提供商";
+"llm_base_url" = "API 地址 (Base URL)";
+"llm_api_key" = "API 密钥 (API Key)";
+"llm_api_key_desc" = "您的 API 密钥将安全地存储在系统钥匙串中。";
+"llm_model_name" = "模型名称";
+"llm_parameters_title" = "参数设置";
+"llm_temperature" = "温度 (随机性)";
+"llm_context_budget" = "上下文 Token 预算";
+
+/* Embedding Settings */
+"embedding_settings_title" = "Embedding 配置";
+"embedding_settings_desc" = "配置用于语义搜索的 Embedding 模型。";
+"embedding_base_url" = "Embedding API 地址";
+"embedding_api_key" = "Embedding API 密钥";
+"embedding_api_key_placeholder" = "留空则跳过 Embedding";
+"embedding_api_key_desc" = "用于 Embedding 服务的 API 密钥。如果为空，将禁用向量搜索。";
+"embedding_model_name" = "Embedding 模型";

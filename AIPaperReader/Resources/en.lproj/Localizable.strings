@@ -1,0 +1,119 @@
+/* General */
+"app_name" = "AIPaperReader";
+"app_subtitle" = "AI-Powered Academic Paper Assistant";
+"error" = "Error";
+"ok" = "OK";
+"cancel" = "Cancel";
+
+/* Menu */
+"menu_open" = "Open...";
+"menu_zoom_in" = "Zoom In";
+"menu_zoom_out" = "Zoom Out";
+"menu_actual_size" = "Actual Size";
+"menu_find" = "Find...";
+"menu_toggle_chat" = "Toggle Chat Panel";
+
+"lang_system" = "System Default";
+
+/* Welcome View */
+"welcome_open_pdf" = "Open PDF File";
+"welcome_drag_drop" = "Or drag and drop PDF file here";
+"welcome_shortcuts" = "Shortcuts";
+"shortcut_open" = "Open File";
+"shortcut_search" = "Search";
+"shortcut_zoom" = "Zoom In/Out";
+"shortcut_chat" = "Toggle Chat Panel";
+"shortcut_settings" = "Settings";
+
+/* Setup */
+"setup_required_title" = "LLM Configuration Required";
+"setup_required_desc" = "Configure to use AI chat features";
+"setup_button_configure" = "Configure Now";
+"setup_configured_title" = "LLM Configured";
+"setup_button_change" = "Change";
+
+/* PDF Reader Context Menu */
+"ctx_translate" = "Translate to Chinese";
+"ctx_explain" = "Explain this content";
+"ctx_summarize" = "Summarize";
+"ctx_search" = "Web Search";
+"ctx_copy" = "Copy";
+"ctx_delete_annotation" = "Delete this annotation";
+"ctx_highlight" = "Highlight";
+"ctx_underline" = "Underline";
+"ctx_strikethrough" = "Strikethrough";
+"ctx_ai_assist" = "AI Assistant";
+"ctx_search_prefix" = "Search";
+"ctx_select_all" = "Select All";
+"ctx_clear_annotations" = "Clear All Annotations";
+
+/* Colors */
+"color_yellow" = "Yellow";
+"color_red" = "Red";
+"color_orange" = "Orange";
+"color_green" = "Green";
+"color_cyan" = "Cyan";
+"color_blue" = "Blue";
+"color_purple" = "Purple";
+"color_pink" = "Pink";
+
+/* Underline Styles */
+"style_single" = "Single";
+"style_double" = "Double";
+"style_thick" = "Thick";
+"style_dashed" = "Dashed";
+"style_wavy" = "Wavy";
+
+/* Chat Panel */
+"chat_title" = "AI Chat";
+"chat_settings" = "Settings";
+"chat_clear" = "Clear Chat";
+"chat_preset_title" = "Try these common questions:";
+"chat_empty_doc" = "Open PDF to start chat";
+"chat_empty_doc_desc" = "After opening a document, you can ask AI questions about its content";
+"chat_quick_actions" = "Customize Quick Actions";
+"chat_done" = "Done";
+"chat_builtin_questions" = "Built-in Questions";
+"chat_builtin_desc" = "Built-in questions cannot be deleted or modified";
+"chat_custom_questions" = "Custom Questions";
+"chat_no_custom" = "No custom questions yet";
+"chat_add_new" = "Add New Question";
+"chat_enter_new" = "Enter new quick question...";
+"chat_add_desc" = "Add common questions for quick access";
+
+/* Sidebar */
+"sidebar_thumbnails" = "Thumbnails";
+"sidebar_outline" = "Outline";
+
+/* Toolbar */
+"toolbar_toggle_sidebar" = "Toggle Sidebar";
+"toolbar_page_fmt" = "Page %d of %d";
+"toolbar_zoom_out" = "Zoom Out (⌘-)";
+"toolbar_zoom_in" = "Zoom In (⌘+)";
+"toolbar_zoom_fit" = "Zoom to Fit";
+"toolbar_prev_page" = "Previous Page";
+"toolbar_next_page" = "Next Page";
+"toolbar_search_tooltip" = "Search (⌘F)";
+"toolbar_search_placeholder" = "Search in document...";
+"toolbar_done" = "Done";
+
+/* Settings */
+"llm_settings_title" = "LLM Configuration";
+"llm_settings_desc" = "Configure the Large Language Model used for chat.";
+"llm_provider" = "Provider";
+"llm_base_url" = "Base URL";
+"llm_api_key" = "API Key";
+"llm_api_key_desc" = "Your API Key is stored securely in the system Keychain.";
+"llm_model_name" = "Model Name";
+"llm_parameters_title" = "Parameters";
+"llm_temperature" = "Temperature";
+"llm_context_budget" = "Context Token Budget";
+
+/* Embedding Settings */
+"embedding_settings_title" = "Embedding Configuration";
+"embedding_settings_desc" = "Configure the Embedding Model used for semantic search.";
+"embedding_base_url" = "Embedding Base URL";
+"embedding_api_key" = "Embedding API Key";
+"embedding_api_key_placeholder" = "Leave empty to skip embedding";
+"embedding_api_key_desc" = "API Key for the embedding service. If empty, vector search is disabled.";
+"embedding_model_name" = "Embedding Model";

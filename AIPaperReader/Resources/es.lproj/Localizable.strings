@@ -1,0 +1,119 @@
+/* General */
+"app_name" = "AIPaperReader";
+"app_subtitle" = "Asistente de lectura de artículos académicos con IA";
+"error" = "Error";
+"ok" = "Aceptar";
+"cancel" = "Cancelar";
+
+/* Menu */
+"menu_open" = "Abrir...";
+"menu_zoom_in" = "Acercar";
+"menu_zoom_out" = "Alejar";
+"menu_actual_size" = "Tamaño real";
+"menu_find" = "Buscar...";
+"menu_toggle_chat" = "Alternar panel de chat";
+
+"lang_system" = "Predeterminado del sistema";
+
+/* Welcome View */
+"welcome_open_pdf" = "Abrir archivo PDF";
+"welcome_drag_drop" = "O arrastra y suelta un archivo PDF aquí";
+"welcome_shortcuts" = "Atajos";
+"shortcut_open" = "Abrir archivo";
+"shortcut_search" = "Buscar";
+"shortcut_zoom" = "Zoom +/-";
+"shortcut_chat" = "Panel de chat";
+"shortcut_settings" = "Configuración";
+
+/* Setup */
+"setup_required_title" = "Configuración de LLM requerida";
+"setup_required_desc" = "Configura para usar funciones de chat con IA";
+"setup_button_configure" = "Configurar ahora";
+"setup_configured_title" = "LLM configurado";
+"setup_button_change" = "Cambiar";
+
+/* PDF Reader Context Menu */
+"ctx_translate" = "Traducir al español";
+"ctx_explain" = "Explicar este contenido";
+"ctx_summarize" = "Resumir";
+"ctx_search" = "Buscar en la web";
+"ctx_copy" = "Copiar";
+"ctx_delete_annotation" = "Eliminar esta anotación";
+"ctx_highlight" = "Resaltar";
+"ctx_underline" = "Subrayar";
+"ctx_strikethrough" = "Tachar";
+"ctx_ai_assist" = "Asistente IA";
+"ctx_search_prefix" = "Buscar";
+"ctx_select_all" = "Seleccionar todo";
+"ctx_clear_annotations" = "Borrar todas las anotaciones";
+
+/* Colors */
+"color_yellow" = "Amarillo";
+"color_red" = "Rojo";
+"color_orange" = "Naranja";
+"color_green" = "Verde";
+"color_cyan" = "Cian";
+"color_blue" = "Azul";
+"color_purple" = "Púrpura";
+"color_pink" = "Rosa";
+
+/* Underline Styles */
+"style_single" = "Sencillo";
+"style_double" = "Doble";
+"style_thick" = "Grueso";
+"style_dashed" = "Discontinuo";
+"style_wavy" = "Ondulado";
+
+/* Chat Panel */
+"chat_title" = "Chat con IA";
+"chat_settings" = "Configuración";
+"chat_clear" = "Borrar chat";
+"chat_preset_title" = "Prueba estas preguntas comunes:";
+"chat_empty_doc" = "Abre un PDF para comenzar";
+"chat_empty_doc_desc" = "Después de abrir un documento, puedes hacer preguntas a la IA sobre su contenido";
+"chat_quick_actions" = "Personalizar acciones rápidas";
+"chat_done" = "Hecho";
+"chat_builtin_questions" = "Preguntas integradas";
+"chat_builtin_desc" = "Las preguntas integradas no se pueden eliminar ni modificar";
+"chat_custom_questions" = "Preguntas personalizadas";
+"chat_no_custom" = "Aún no hay preguntas personalizadas";
+"chat_add_new" = "Añadir nueva pregunta";
+"chat_enter_new" = "Introduce una nueva pregunta rápida...";
+"chat_add_desc" = "Añade preguntas comunes para un acceso rápido";
+
+/* Sidebar */
+"sidebar_thumbnails" = "Miniaturas";
+"sidebar_outline" = "Esquema";
+
+/* Toolbar */
+"toolbar_toggle_sidebar" = "Alternar barra lateral";
+"toolbar_page_fmt" = "Página %d de %d";
+"toolbar_zoom_out" = "Alejar (⌘-)";
+"toolbar_zoom_in" = "Acercar (⌘+)";
+"toolbar_zoom_fit" = "Ajustar a la ventana";
+"toolbar_prev_page" = "Página anterior";
+"toolbar_next_page" = "Página siguiente";
+"toolbar_search_tooltip" = "Buscar (⌘F)";
+"toolbar_search_placeholder" = "Buscar en el documento...";
+"toolbar_done" = "Hecho";
+
+/* Settings */
+"llm_settings_title" = "Configuración de LLM";
+"llm_settings_desc" = "Configura el modelo de lenguaje grande utilizado para el chat.";
+"llm_provider" = "Proveedor";
+"llm_base_url" = "URL base";
+"llm_api_key" = "Clave API";
+"llm_api_key_desc" = "Tu clave API se almacena de forma segura en el llavero del sistema.";
+"llm_model_name" = "Nombre del modelo";
+"llm_parameters_title" = "Parámetros";
+"llm_temperature" = "Temperatura";
+"llm_context_budget" = "Presupuesto de tokens de contexto";
+
+/* Embedding Settings */
+"embedding_settings_title" = "Configuración de Embedding";
+"embedding_settings_desc" = "Configura el modelo de Embedding utilizado para la búsqueda semántica.";
+"embedding_base_url" = "URL base de Embedding";
+"embedding_api_key" = "Clave API de Embedding";
+"embedding_api_key_placeholder" = "Dejar vacío para omitir";
+"embedding_api_key_desc" = "Clave API para el servicio de embedding. Si está vacío, la búsqueda vectorial se desactiva.";
+"embedding_model_name" = "Modelo de Embedding";
