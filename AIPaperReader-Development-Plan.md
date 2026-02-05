@@ -17,7 +17,7 @@ AIPaperReader 是一款面向科研工作者的 macOS 原生 PDF 论文阅读器
 
 1. **PDF 阅读**：原生 PDFKit 渲染，支持缩放、搜索、目录导航、文本选中
 2. **AI 论文问答**：提取 PDF 文本 → 构造 prompt → 调用 LLM API → 流式输出回答
-3. **多 LLM 后端**：支持 OpenAI 兼容 API / Ollama 本地模型 / 自定义端点
+3. **多 LLM 后端**：支持 GPT-5.2、Claude Sonnet 4.5、Gemini-3 等 OpenAI 兼容 API / Ollama 本地模型 / 自定义端点
 4. **选中文本翻译**：选中文本后一键翻译（Apple Translation + LLM 翻译）
 5. **对话历史管理**：保存和回顾与每篇论文的问答记录
 6. **设置管理**：API Key、模型选择、system prompt 自定义
@@ -269,7 +269,7 @@ protocol LLMServiceProtocol {
 }
 ```
 
-2. **实现 OpenAI 兼容服务**（覆盖 OpenAI / 硅基流动 / DeepSeek / 其它兼容 API）
+2. **实现 OpenAI 兼容服务**（覆盖 GPT-5.2、Claude Sonnet 4.5、Gemini-3 及其它兼容 API）
    - 支持自定义 base URL
    - 支持流式响应（SSE: Server-Sent Events）
    - 正确处理 `data: [DONE]` 结束标记
@@ -574,7 +574,7 @@ class KeychainHelper {
 ```
 
 4. **多配置 Profile 支持**（可选进阶）
-   - 允许保存多个 LLM 配置（如"OpenAI GPT-4"、"本地 Ollama"）
+   - 允许保存多个 LLM 配置（如"GPT-5.2"、"Claude Sonnet 4.5"、"Gemini-3"、"本地 Ollama"）
    - 快速切换
 
 #### 验收标准
