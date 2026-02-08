@@ -85,7 +85,7 @@ struct ModelManagerView: View {
                     // List
                     List {
                         ForEach(filteredModels, id: \.self) { model in
-                            HStack {
+                            HStack(spacing: 8) {
                                 Toggle("", isOn: Binding(
                                     get: { enabledModels.contains(model) },
                                     set: { isEnabled in
@@ -95,7 +95,6 @@ struct ModelManagerView: View {
                                             }
                                         } else {
                                             enabledModels.removeAll { $0 == model }
-                                            // Handle case where selected model is disabled
                                             if selectedModel == model, let first = enabledModels.first {
                                                 selectedModel = first
                                             }
@@ -103,18 +102,17 @@ struct ModelManagerView: View {
                                     }
                                 ))
                                 .toggleStyle(.checkbox)
-                                
-                                Text(model)
-                                Spacer()
-                                if selectedModel == model {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(.accentColor)
-                                        .help("Currently selected model")
+
+                                ModelCardView(
+                                    modelId: model,
+                                    provider: provider,
+                                    isSelected: selectedModel == model,
+                                    isCompact: true
+                                ) {
+                                    if enabledModels.contains(model) {
+                                        selectedModel = model
+                                    }
                                 }
-                            }
-                            .contentShape(Rectangle()) // Make clickable area better
-                            .onTapGesture {
-                                // Optional: Select row effectively toggles? Or just selects?
                             }
                         }
                     }

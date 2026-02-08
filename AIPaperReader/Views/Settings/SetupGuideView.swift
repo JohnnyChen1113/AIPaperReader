@@ -241,28 +241,11 @@ struct ProviderCard: View {
     let onSelect: () -> Void
 
     var providerDescription: String {
-        switch provider {
-        case .siliconflow:
-            return "国内服务，有免费额度，支持多种开源模型"
-        case .deepseek:
-            return "DeepSeek 官方 API，性价比高"
-        case .openaiCompatible:
-            return "OpenAI 或其他兼容 API"
-        case .ollama:
-            return "本地运行，完全免费，需要自行部署"
-        case .bioInfoArk:
-            return "国内直连，支持 GPT-4/Claude-3.5 等顶尖模型"
-        }
+        provider.providerDescription
     }
 
     var providerIcon: String {
-        switch provider {
-        case .siliconflow: return "cpu"
-        case .deepseek: return "brain.head.profile"
-        case .openaiCompatible: return "globe"
-        case .ollama: return "desktopcomputer"
-        case .bioInfoArk: return "server.rack"
-        }
+        provider.providerIcon
     }
 
     var isRecommended: Bool {
@@ -493,30 +476,16 @@ struct Step3ModelView: View {
                     }
                 }
 
-                VStack(spacing: 4) {
+                VStack(spacing: 6) {
                     ForEach(settings.enabledModels, id: \.self) { model in
-                        HStack {
-                            Image(systemName: settings.llmModelName == model ? "checkmark.circle.fill" : "circle")
-                                .foregroundColor(settings.llmModelName == model ? .accentColor : .secondary)
-
-                            Text(formatModelName(model))
-
-                            Spacer()
-
-                            if settings.llmModelName != model {
-                                Button("使用") {
-                                    settings.llmModelName = model
-                                }
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
-                            }
+                        ModelCardView(
+                            modelId: model,
+                            provider: settings.llmProvider,
+                            isSelected: settings.llmModelName == model,
+                            isCompact: false
+                        ) {
+                            settings.llmModelName = model
                         }
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(settings.llmModelName == model ? Color.accentColor.opacity(0.1) : Color.clear)
-                        )
                     }
                 }
             }

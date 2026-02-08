@@ -17,6 +17,9 @@ struct AIPaperReaderApp: App {
         let schema = Schema([
             ChatSession.self,
             ChatMessageModel.self,
+            PaperItem.self,
+            PaperTag.self,
+            PaperCollection.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
@@ -33,6 +36,7 @@ struct AIPaperReaderApp: App {
                 .preferredColorScheme(settings.colorScheme)
                 .appLocale(settings.locale)
         }
+        .modelContainer(sharedModelContainer)
         .commands {
             // File menu commands
             CommandGroup(replacing: .newItem) {
@@ -40,6 +44,18 @@ struct AIPaperReaderApp: App {
                     NotificationCenter.default.post(name: .openDocument, object: nil)
                 }
                 .keyboardShortcut("o", modifiers: .command)
+
+                Divider()
+
+                Button("menu_save") {
+                    NotificationCenter.default.post(name: .saveDocument, object: nil)
+                }
+                .keyboardShortcut("s", modifiers: .command)
+
+                Button("menu_save_as") {
+                    NotificationCenter.default.post(name: .saveDocumentAs, object: nil)
+                }
+                .keyboardShortcut("s", modifiers: [.command, .shift])
             }
 
             // View menu commands
@@ -74,6 +90,38 @@ struct AIPaperReaderApp: App {
                     NotificationCenter.default.post(name: .toggleChat, object: nil)
                 }
                 .keyboardShortcut("l", modifiers: .command)
+
+                Divider()
+
+                Button("显示文献库") {
+                    NotificationCenter.default.post(name: .toggleLibrary, object: nil)
+                }
+                .keyboardShortcut("l", modifiers: [.command, .shift])
+            }
+
+            // Go menu - Page navigation
+            CommandMenu("menu_go") {
+                Button("menu_next_page") {
+                    NotificationCenter.default.post(name: .goToNextPage, object: nil)
+                }
+                .keyboardShortcut(.downArrow, modifiers: .command)
+
+                Button("menu_previous_page") {
+                    NotificationCenter.default.post(name: .goToPreviousPage, object: nil)
+                }
+                .keyboardShortcut(.upArrow, modifiers: .command)
+
+                Divider()
+
+                Button("menu_first_page") {
+                    NotificationCenter.default.post(name: .goToFirstPage, object: nil)
+                }
+                .keyboardShortcut(.home, modifiers: .command)
+
+                Button("menu_last_page") {
+                    NotificationCenter.default.post(name: .goToLastPage, object: nil)
+                }
+                .keyboardShortcut(.end, modifiers: .command)
             }
 
             // Sidebar toggle
@@ -109,11 +157,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 extension Notification.Name {
     static let openDocument = Notification.Name("openDocument")
     static let openDocumentURL = Notification.Name("openDocumentURL")
+    static let saveDocument = Notification.Name("saveDocument")
+    static let saveDocumentAs = Notification.Name("saveDocumentAs")
     static let zoomIn = Notification.Name("zoomIn")
     static let zoomOut = Notification.Name("zoomOut")
     static let zoomToFit = Notification.Name("zoomToFit")
     static let toggleSearch = Notification.Name("toggleSearch")
     static let toggleChat = Notification.Name("toggleChat")
+    static let goToNextPage = Notification.Name("goToNextPage")
+    static let goToPreviousPage = Notification.Name("goToPreviousPage")
+    static let goToFirstPage = Notification.Name("goToFirstPage")
+    static let goToLastPage = Notification.Name("goToLastPage")
+    static let toggleLibrary = Notification.Name("toggleLibrary")
 }
 
 // MARK: - View Extension

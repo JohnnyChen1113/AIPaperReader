@@ -34,6 +34,12 @@ enum PDFViewDisplayMode: String, CaseIterable {
     }
 }
 
+/// 缩放适合模式
+enum ZoomFitMode {
+    case fitWidth
+    case fitPage
+}
+
 /// 预设缩放比例
 enum ZoomPreset: String, CaseIterable {
     case fitWidth = "适合宽度"
@@ -59,6 +65,14 @@ enum ZoomPreset: String, CaseIterable {
         case .p300: return 3.0
         }
     }
+
+    var fitMode: ZoomFitMode? {
+        switch self {
+        case .fitWidth: return .fitWidth
+        case .fitPage: return .fitPage
+        default: return nil
+        }
+    }
 }
 
 /// PDF 工具栏视图
@@ -68,6 +82,8 @@ struct PDFToolbarView: View {
     @Binding var currentPageIndex: Int
     let pageCount: Int
     var onGoToPage: ((Int) -> Void)?
+    var onRotate: ((Int) -> Void)?  // 旋转回调，参数为度数（正为顺时针，负为逆时针）
+    var onZoomToFit: ((ZoomFitMode) -> Void)?  // 缩放适合模式回调
 
     @State private var selectedDisplayMode: PDFViewDisplayMode = .singlePageContinuous
     @State private var pageInputText: String = ""
@@ -211,13 +227,13 @@ struct PDFToolbarView: View {
 
             // 旋转按钮
             HStack(spacing: 4) {
-                Button(action: {}) {
+                Button(action: { onRotate?(-90) }) {
                     Image(systemName: "rotate.left")
                 }
                 .buttonStyle(.plain)
                 .help("逆时针旋转")
 
-                Button(action: {}) {
+                Button(action: { onRotate?(90) }) {
                     Image(systemName: "rotate.right")
                 }
                 .buttonStyle(.plain)
@@ -272,17 +288,9 @@ struct PDFToolbarView: View {
     private func applyZoomPreset(_ preset: ZoomPreset) {
         if let factor = preset.scaleFactor {
             scaleFactor = factor
-        } else {
-            // 适合宽度/页面需要特殊处理
-            // 这里简单设置一个合理的值
-            switch preset {
-            case .fitWidth:
-                scaleFactor = 1.0 // 实际应该根据视图宽度计算
-            case .fitPage:
-                scaleFactor = 0.85 // 实际应该根据视图大小计算
-            default:
-                break
-            }
+        } else if let fitMode = preset.fitMode {
+            // 使用回调让 PDFView 计算合适的缩放比例
+            onZoomToFit?(fitMode)
         }
     }
 

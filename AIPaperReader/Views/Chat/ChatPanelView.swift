@@ -12,10 +12,13 @@ struct ChatPanelView: View {
     @ObservedObject var viewModel: ChatViewModel
     let document: PDFDocument?
     let currentPageIndex: Int
-    
+
     @Environment(\.modelContext) private var modelContext
 
     @State private var showQuickActionSettings: Bool = false
+    @State private var showHistoryPopover: Bool = false
+    @State private var showBrief: Bool = false
+    @StateObject private var briefingService = BriefingService()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -25,77 +28,108 @@ struct ChatPanelView: View {
                 isIngesting: viewModel.isIngesting,
                 ingestionProgress: viewModel.ingestionProgress,
                 onClear: viewModel.clearChat,
-                onShowSettings: { showQuickActionSettings = true }
+                onShowSettings: { showQuickActionSettings = true },
+                onShowHistory: { showHistoryPopover = true },
+                onNewChat: {
+                    if let documentURL = document?.documentURL {
+                        viewModel.startNewChat(for: documentURL.absoluteString)
+                    }
+                },
+                onExportChat: { viewModel.exportChatToFile() }
             )
 
             Divider()
 
-            // Page range selector
-            if document != nil {
-                PageRangeSelectorView(
-                    pageRangeOption: $viewModel.pageRangeOption,
-                    customPageRange: $viewModel.customPageRange,
-                    estimatedTokens: viewModel.estimatedTokens,
-                    pageCount: document?.pageCount ?? 0
-                )
-                .onChange(of: viewModel.pageRangeOption) { _, _ in
-                    viewModel.updateTokenEstimate(document: document, currentPageIndex: currentPageIndex)
-                }
-                .onChange(of: viewModel.customPageRange) { _, _ in
-                    viewModel.updateTokenEstimate(document: document, currentPageIndex: currentPageIndex)
-                }
-
-                Divider()
-            }
-
-            // Messages area
-            if viewModel.messages.isEmpty && !viewModel.isGenerating {
-                BilingualEmptyStateView(
-                    hasDocument: document != nil,
-                    presetQuestions: ChatViewModel.allPresetQuestions,
-                    onSelectPreset: { question in
-                        viewModel.sendPresetQuestion(question, document: document, currentPageIndex: currentPageIndex)
-                    }
+            if showBrief {
+                // 简报视图
+                PaperBriefView(
+                    briefingService: briefingService,
+                    document: document,
+                    onDismiss: { showBrief = false }
                 )
             } else {
-                MessagesScrollView(viewModel: viewModel)
-            }
+                // Page range selector
+                if document != nil {
+                    PageRangeSelectorView(
+                        pageRangeOption: $viewModel.pageRangeOption,
+                        customPageRange: $viewModel.customPageRange,
+                        estimatedTokens: viewModel.estimatedTokens,
+                        pageCount: document?.pageCount ?? 0
+                    )
+                    .onChange(of: viewModel.pageRangeOption) { _, _ in
+                        viewModel.updateTokenEstimate(document: document, currentPageIndex: currentPageIndex)
+                    }
+                    .onChange(of: viewModel.customPageRange) { _, _ in
+                        viewModel.updateTokenEstimate(document: document, currentPageIndex: currentPageIndex)
+                    }
 
-            // Error message
-            if let error = viewModel.errorMessage {
-                ErrorBannerView(message: error) {
-                    viewModel.errorMessage = nil
+                    Divider()
                 }
-            }
 
-            Divider()
+                // Messages area
+                if viewModel.messages.isEmpty && !viewModel.isGenerating {
+                    BilingualEmptyStateView(
+                        hasDocument: document != nil,
+                        presetQuestions: ChatViewModel.allPresetQuestions,
+                        onSelectPreset: { question in
+                            viewModel.sendPresetQuestion(question, document: document, currentPageIndex: currentPageIndex)
+                        },
+                        onGenerateBrief: document != nil ? {
+                            showBrief = true
+                            if let doc = document {
+                                let settings = AppSettings.shared
+                                let service = LLMServiceFactory.create(config: settings.llmConfig)
+                                briefingService.generateBrief(document: doc, service: service)
+                            }
+                        } : nil
+                    )
+                } else {
+                    MessagesScrollView(viewModel: viewModel)
+                }
 
-            // Preset questions (显示在输入框上方)
-            if !viewModel.messages.isEmpty && !viewModel.isGenerating {
-                BilingualPresetQuestionsView(
-                    questions: ChatViewModel.allPresetQuestions
-                ) { question in
-                    viewModel.sendPresetQuestion(question, document: document, currentPageIndex: currentPageIndex)
+                // Error message
+                if let error = viewModel.errorMessage {
+                    ErrorBannerView(message: error) {
+                        viewModel.errorMessage = nil
+                    }
                 }
 
                 Divider()
-            }
 
-            // Input area
-            ChatInputView(
-                inputText: $viewModel.inputText,
-                isGenerating: viewModel.isGenerating,
-                onSend: {
-                    viewModel.sendMessage(document: document, currentPageIndex: currentPageIndex)
-                },
-                onStop: viewModel.stopGenerating
-            )
+                // Preset questions (显示在输入框上方)
+                if !viewModel.messages.isEmpty && !viewModel.isGenerating {
+                    BilingualPresetQuestionsView(
+                        questions: ChatViewModel.allPresetQuestions
+                    ) { question in
+                        viewModel.sendPresetQuestion(question, document: document, currentPageIndex: currentPageIndex)
+                    }
+
+                    Divider()
+                }
+
+                // Input area
+                ChatInputView(
+                    inputText: $viewModel.inputText,
+                    isGenerating: viewModel.isGenerating,
+                    onSend: {
+                        viewModel.sendMessage(document: document, currentPageIndex: currentPageIndex)
+                    },
+                    onStop: viewModel.stopGenerating
+                )
+            }
         }
         .frame(minWidth: 300, idealWidth: 400, maxWidth: 500)
         .onAppear {
-            viewModel.setModelContext(modelContext)
+            // 后备注入：如果 TabManager 尚未设置 modelContext，在此设置
+            if viewModel.modelContext == nil {
+                viewModel.setModelContext(modelContext)
+            }
+            // 仅在 session 未加载或 documentId 不匹配时才加载
             if let document = document, let documentURL = document.documentURL {
-                viewModel.loadSession(for: documentURL.absoluteString)
+                let docId = documentURL.absoluteString
+                if viewModel.currentSession == nil || viewModel.currentSession?.documentId != docId {
+                    viewModel.loadSession(for: docId)
+                }
             }
             viewModel.updateTokenEstimate(document: document, currentPageIndex: currentPageIndex)
         }
@@ -104,6 +138,10 @@ struct ChatPanelView: View {
                 viewModel.loadSession(for: documentURL.absoluteString)
             }
             viewModel.updateTokenEstimate(document: newDoc, currentPageIndex: currentPageIndex)
+            // 切换文档时检查缓存
+            if let newDoc = newDoc, let cached = briefingService.getCachedBrief(for: newDoc.documentURL) {
+                briefingService.brief = cached
+            }
         }
         .onChange(of: currentPageIndex) { _, newIndex in
             if viewModel.pageRangeOption == .currentPage {
@@ -112,6 +150,121 @@ struct ChatPanelView: View {
         }
         .sheet(isPresented: $showQuickActionSettings) {
             QuickActionSettingsView()
+        }
+        .popover(isPresented: $showHistoryPopover) {
+            ChatHistoryPopover(
+                viewModel: viewModel,
+                documentId: document?.documentURL?.absoluteString ?? "",
+                onDismiss: { showHistoryPopover = false }
+            )
+        }
+    }
+}
+
+// MARK: - Chat History Popover
+
+struct ChatHistoryPopover: View {
+    @ObservedObject var viewModel: ChatViewModel
+    let documentId: String
+    var onDismiss: () -> Void
+
+    @State private var sessions: [ChatSession] = []
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header
+            HStack {
+                Text("聊天历史")
+                    .font(.headline)
+                Spacer()
+                Button(action: onDismiss) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding()
+
+            Divider()
+
+            // Session list
+            if sessions.isEmpty {
+                VStack {
+                    Spacer()
+                    Text("暂无历史记录")
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity)
+            } else {
+                List {
+                    ForEach(sessions, id: \.id) { session in
+                        ChatSessionRow(
+                            session: session,
+                            isActive: session.id == viewModel.currentSession?.id,
+                            onSelect: {
+                                viewModel.switchToSession(session)
+                                onDismiss()
+                            },
+                            onDelete: {
+                                viewModel.deleteSession(session)
+                                sessions = viewModel.fetchSessions(for: documentId)
+                            }
+                        )
+                    }
+                }
+                .listStyle(.plain)
+            }
+        }
+        .frame(width: 300, height: 400)
+        .onAppear {
+            sessions = viewModel.fetchSessions(for: documentId)
+        }
+    }
+}
+
+struct ChatSessionRow: View {
+    let session: ChatSession
+    let isActive: Bool
+    var onSelect: () -> Void
+    var onDelete: () -> Void
+
+    @State private var isHovered: Bool = false
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    if isActive {
+                        Circle()
+                            .fill(Color.green)
+                            .frame(width: 8, height: 8)
+                    }
+                    Text(session.title)
+                        .fontWeight(isActive ? .semibold : .regular)
+                        .lineLimit(1)
+                }
+
+                Text("\(session.messages.count) 条消息 · \(session.createdAt.formatted(date: .abbreviated, time: .shortened))")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            if isHovered {
+                Button(action: onDelete) {
+                    Image(systemName: "trash")
+                        .foregroundColor(.red)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.vertical, 4)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onSelect)
+        .onHover { hovering in
+            isHovered = hovering
         }
     }
 }
@@ -124,6 +277,9 @@ struct ChatPanelHeader: View {
     var ingestionProgress: Double = 0.0
     var onClear: () -> Void
     var onShowSettings: () -> Void
+    var onShowHistory: (() -> Void)? = nil
+    var onNewChat: (() -> Void)? = nil
+    var onExportChat: (() -> Void)? = nil
 
     var body: some View {
         VStack(spacing: 0) {
@@ -132,6 +288,39 @@ struct ChatPanelHeader: View {
                     .font(.headline)
 
                 Spacer()
+
+                // 模型快速切换
+                ModelQuickSwitchButton(settings: AppSettings.shared)
+
+                // 历史记录按钮
+                if let onShowHistory = onShowHistory {
+                    Button(action: onShowHistory) {
+                        Image(systemName: "clock.arrow.circlepath")
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("聊天历史")
+                }
+
+                // 新建聊天按钮
+                if let onNewChat = onNewChat {
+                    Button(action: onNewChat) {
+                        Image(systemName: "plus.bubble")
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("新建聊天")
+                }
+
+                // 导出聊天按钮
+                if hasMessages, let onExport = onExportChat {
+                    Button(action: onExport) {
+                        Image(systemName: "arrow.down.doc")
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("导出聊天记录")
+                }
 
                 Button(action: onShowSettings) {
                     Image(systemName: "slider.horizontal.3")
@@ -151,7 +340,7 @@ struct ChatPanelHeader: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            
+
             // Progress Bar
             if isIngesting {
                 ProgressView(value: ingestionProgress)
@@ -219,12 +408,14 @@ struct EmptyStateView: View {
     var hasDocument: Bool
     var presetQuestions: [String]
     var onSelectPreset: (String) -> Void
+    var onGenerateBrief: (() -> Void)? = nil
 
     var body: some View {
         BilingualEmptyStateView(
             hasDocument: hasDocument,
             presetQuestions: ChatViewModel.allPresetQuestions,
-            onSelectPreset: onSelectPreset
+            onSelectPreset: onSelectPreset,
+            onGenerateBrief: onGenerateBrief
         )
     }
 }
@@ -235,6 +426,7 @@ struct BilingualEmptyStateView: View {
     var hasDocument: Bool
     var presetQuestions: [PresetQuestion]
     var onSelectPreset: (String) -> Void
+    var onGenerateBrief: (() -> Void)? = nil
 
     var body: some View {
         VStack(spacing: 20) {
@@ -248,6 +440,28 @@ struct BilingualEmptyStateView: View {
                 Text("chat_empty_doc_desc")
                     .font(.headline)
                     .foregroundColor(.secondary)
+
+                // 生成简报按钮
+                if let onBrief = onGenerateBrief {
+                    Button(action: onBrief) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "doc.text.magnifyingglass")
+                                .font(.title3)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("生成论文简报")
+                                    .fontWeight(.semibold)
+                                Text("AI 快速提取论文核心信息")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .padding(.horizontal, 16)
+                }
 
                 Text("chat_preset_title")
                     .font(.subheadline)
@@ -263,7 +477,7 @@ struct BilingualEmptyStateView: View {
                 }
                 .background(Color.secondary.opacity(0.05))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
-                .frame(maxHeight: 280)
+                .frame(maxHeight: 240)
             } else {
                 Image(systemName: "doc.text")
                     .font(.system(size: 48))
@@ -307,7 +521,7 @@ struct BilingualQuestionButton: View {
                 }
                 // 中文
                 HStack {
-                    Image(systemName: question.isBuiltIn ? "arrow.right.circle" : "star.fill")
+                    Image(systemName: question.icon)
                         .foregroundColor(question.isBuiltIn ? .accentColor : .orange)
                         .font(.caption)
                     Text(question.chinese)
@@ -340,13 +554,17 @@ struct BilingualPresetQuestionsView: View {
             HStack(spacing: 8) {
                 ForEach(questions.prefix(6)) { question in
                     Button(action: { onSelect(question.chinese) }) {
-                        Text(question.chinese)
-                            .font(.caption)
-                            .lineLimit(1)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(Color.secondary.opacity(0.1))
-                            .clipShape(Capsule())
+                        HStack(spacing: 4) {
+                            Image(systemName: question.icon)
+                                .font(.system(size: 10))
+                            Text(question.chinese)
+                                .font(.caption)
+                                .lineLimit(1)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Color.secondary.opacity(0.1))
+                        .clipShape(Capsule())
                     }
                     .buttonStyle(.plain)
                 }
@@ -405,7 +623,8 @@ struct QuickActionSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var settings = AppSettings.shared
 
-    @State private var newActionText: String = ""
+    @State private var showAddSheet: Bool = false
+    @State private var editingAction: CustomQuickAction?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -414,6 +633,12 @@ struct QuickActionSettingsView: View {
                 Text("chat_quick_actions")
                     .font(.headline)
                 Spacer()
+
+                Button(action: { showAddSheet = true }) {
+                    Image(systemName: "plus.circle")
+                }
+                .buttonStyle(.plain)
+
                 Button("chat_done") {
                     dismiss()
                 }
@@ -423,8 +648,31 @@ struct QuickActionSettingsView: View {
 
             Divider()
 
-            // 内置问题（不可删除）
             Form {
+                // 内置快捷操作（右键菜单的翻译/解释/总结）
+                Section {
+                    ForEach(CustomQuickAction.builtInActions) { action in
+                        HStack {
+                            Label(action.name, systemImage: action.icon)
+                                .fontWeight(.medium)
+                            Spacer()
+                            Text("内置")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 2)
+                                .background(Color.secondary.opacity(0.1))
+                                .clipShape(Capsule())
+                        }
+                        .padding(.vertical, 4)
+                    }
+                } header: {
+                    Text("内置快捷操作")
+                } footer: {
+                    Text("内置操作可在 Settings → Prompts 中编辑 Prompt 模板")
+                }
+
+                // 内置预设问题
                 Section {
                     ForEach(ChatViewModel.builtInQuestions) { question in
                         VStack(alignment: .leading, spacing: 2) {
@@ -442,17 +690,31 @@ struct QuickActionSettingsView: View {
                     Text("chat_builtin_desc")
                 }
 
-                // 自定义问题（可删除）
+                // 自定义快捷操作
                 Section {
-                    ForEach(Array(settings.customQuickActions.enumerated()), id: \.element.id) { index, question in
+                    ForEach(settings.customQuickActions) { action in
                         HStack {
-                            VStack(alignment: .leading) {
-                                Text(question.chinese)
-                                    .fontWeight(.medium)
-                            }
+                            Label(action.name, systemImage: action.icon)
+                                .fontWeight(.medium)
+
                             Spacer()
+
+                            if !action.isEnabled {
+                                Text("已禁用")
+                                    .font(.caption)
+                                    .foregroundColor(.orange)
+                            }
+
                             Button(action: {
-                                settings.removeCustomQuickAction(at: index)
+                                editingAction = action
+                            }) {
+                                Image(systemName: "pencil")
+                                    .foregroundColor(.accentColor)
+                            }
+                            .buttonStyle(.plain)
+
+                            Button(action: {
+                                settings.removeCustomQuickAction(id: action.id)
                             }) {
                                 Image(systemName: "trash")
                                     .foregroundColor(.red)
@@ -463,43 +725,209 @@ struct QuickActionSettingsView: View {
                     }
 
                     if settings.customQuickActions.isEmpty {
-                        Text("chat_no_custom")
-                            .foregroundColor(.secondary)
-                            .italic()
+                        VStack(spacing: 8) {
+                            Image(systemName: "sparkles")
+                                .font(.title2)
+                                .foregroundColor(.secondary)
+                            Text("chat_no_custom")
+                                .foregroundColor(.secondary)
+                            Button("添加自定义操作") {
+                                showAddSheet = true
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
                     }
                 } header: {
                     Text("chat_custom_questions")
+                } footer: {
+                    Text("自定义操作可在选中文本后的快捷菜单中使用，也可在 Settings → Prompts 中管理")
                 }
 
-                // 添加新问题
+                // 提示去 Settings 中进行更多设置
                 Section {
-                    HStack {
-                        TextField("chat_enter_new", text: $newActionText)
-                            .textFieldStyle(.roundedBorder)
-
-                        Button(action: addNewAction) {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.title2)
+                    Button(action: {
+                        dismiss()
+                        // 打开设置的 Prompts 页面
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
                         }
-                        .disabled(newActionText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                        .buttonStyle(.plain)
+                    }) {
+                        HStack {
+                            Image(systemName: "gear")
+                            Text("在设置中管理所有 Prompts...")
+                            Spacer()
+                            Image(systemName: "arrow.up.right")
+                        }
                     }
-                } header: {
-                    Text("chat_add_new")
-                } footer: {
-                    Text("chat_add_desc")
+                    .buttonStyle(.plain)
+                    .foregroundColor(.accentColor)
                 }
             }
             .formStyle(.grouped)
         }
-        .frame(width: 450, height: 500)
+        .frame(width: 500, height: 600)
+        .sheet(isPresented: $showAddSheet) {
+            QuickAddActionSheet(settings: settings)
+        }
+        .sheet(item: $editingAction) { action in
+            QuickEditActionSheet(action: action, settings: settings)
+        }
+    }
+}
+
+// MARK: - Quick Add Action Sheet (快速添加操作)
+
+struct QuickAddActionSheet: View {
+    @ObservedObject var settings: AppSettings
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var name: String = ""
+    @State private var icon: String = "sparkles"
+    @State private var prompt: String = "{selection}"
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Button("取消") { dismiss() }
+                Spacer()
+                Text("添加自定义操作")
+                    .font(.headline)
+                Spacer()
+                Button("添加") {
+                    addAction()
+                    dismiss()
+                }
+                .disabled(name.isEmpty)
+                .keyboardShortcut(.defaultAction)
+            }
+            .padding()
+
+            Divider()
+
+            Form {
+                Section("基本信息") {
+                    TextField("名称", text: $name)
+
+                    Picker("图标", selection: $icon) {
+                        ForEach(CustomQuickAction.availableIcons, id: \.self) { iconName in
+                            Label(iconName, systemImage: iconName).tag(iconName)
+                        }
+                    }
+
+                    // 预览
+                    HStack {
+                        Text("预览:")
+                            .foregroundColor(.secondary)
+                        Label(name.isEmpty ? "新操作" : name, systemImage: icon)
+                            .padding(6)
+                            .background(Color.accentColor.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                    }
+                }
+
+                Section {
+                    TextEditor(text: $prompt)
+                        .font(.system(.body, design: .monospaced))
+                        .frame(minHeight: 100)
+                } header: {
+                    Text("Prompt 模板")
+                } footer: {
+                    Text("使用 {selection} 作为选中文本的占位符")
+                }
+            }
+            .formStyle(.grouped)
+        }
+        .frame(width: 450, height: 400)
     }
 
-    private func addNewAction() {
-        let trimmed = newActionText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        settings.addCustomQuickAction(trimmed)
-        newActionText = ""
+    private func addAction() {
+        let action = CustomQuickAction(
+            name: name,
+            icon: icon,
+            prompt: prompt,
+            isBuiltIn: false,
+            isEnabled: true
+        )
+        settings.addCustomQuickAction(action)
+    }
+}
+
+// MARK: - Quick Edit Action Sheet (快速编辑操作)
+
+struct QuickEditActionSheet: View {
+    let action: CustomQuickAction
+    @ObservedObject var settings: AppSettings
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var name: String = ""
+    @State private var icon: String = ""
+    @State private var prompt: String = ""
+    @State private var isEnabled: Bool = true
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Button("取消") { dismiss() }
+                Spacer()
+                Text("编辑操作")
+                    .font(.headline)
+                Spacer()
+                Button("保存") {
+                    saveChanges()
+                    dismiss()
+                }
+                .disabled(name.isEmpty)
+                .keyboardShortcut(.defaultAction)
+            }
+            .padding()
+
+            Divider()
+
+            Form {
+                Section("基本信息") {
+                    TextField("名称", text: $name)
+
+                    Picker("图标", selection: $icon) {
+                        ForEach(CustomQuickAction.availableIcons, id: \.self) { iconName in
+                            Label(iconName, systemImage: iconName).tag(iconName)
+                        }
+                    }
+
+                    Toggle("启用", isOn: $isEnabled)
+                }
+
+                Section {
+                    TextEditor(text: $prompt)
+                        .font(.system(.body, design: .monospaced))
+                        .frame(minHeight: 100)
+                } header: {
+                    Text("Prompt 模板")
+                } footer: {
+                    Text("使用 {selection} 作为选中文本的占位符")
+                }
+            }
+            .formStyle(.grouped)
+        }
+        .frame(width: 450, height: 420)
+        .onAppear {
+            name = action.name
+            icon = action.icon
+            prompt = action.prompt
+            isEnabled = action.isEnabled
+        }
+    }
+
+    private func saveChanges() {
+        var updated = action
+        updated.name = name
+        updated.icon = icon
+        updated.prompt = prompt
+        updated.isEnabled = isEnabled
+        settings.updateCustomQuickAction(updated)
     }
 }
 

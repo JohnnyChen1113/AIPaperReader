@@ -44,17 +44,13 @@ class ContextManager: ObservableObject {
         
         // 2. Generate Embeddings (if API Key is present)
         let settings = AppSettings.shared
-        if !settings.embeddingApiKey.isEmpty {
+        let embConfig = settings.effectiveEmbeddingConfig
+        if !embConfig.apiKey.isEmpty {
             await MainActor.run {
                 self.isEmbedding = true
             }
-            
-            let config = EmbeddingConfig(
-                baseURL: settings.embeddingBaseURL,
-                apiKey: settings.embeddingApiKey,
-                modelName: settings.embeddingModelName
-            )
-            let service = EmbeddingService(config: config)
+
+            let service = EmbeddingService(config: embConfig)
             
             do {
                 // Batch process chunks to avoid timeouts
@@ -103,14 +99,10 @@ class ContextManager: ObservableObject {
         guard !chunks.isEmpty else { return [] }
         
         // Try Vector Search first
-        if !chunkEmbeddings.isEmpty && !AppSettings.shared.embeddingApiKey.isEmpty {
+        let embConfig = AppSettings.shared.effectiveEmbeddingConfig
+        if !chunkEmbeddings.isEmpty && !embConfig.apiKey.isEmpty {
             do {
-                let config = EmbeddingConfig(
-                    baseURL: AppSettings.shared.embeddingBaseURL,
-                    apiKey: AppSettings.shared.embeddingApiKey,
-                    modelName: AppSettings.shared.embeddingModelName
-                )
-                let service = EmbeddingService(config: config)
+                let service = EmbeddingService(config: embConfig)
                 let queryEmbedding = try await service.embed(text: query)
                 
                 // Calculate cosine similarity

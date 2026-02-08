@@ -11,6 +11,7 @@ import PDFKit
 struct PDFOutlineSidebar: View {
     let document: PDFDocument?
     @Binding var currentPageIndex: Int
+    var onPageSelected: ((Int) -> Void)?
 
     var body: some View {
         ScrollView {
@@ -19,7 +20,8 @@ struct PDFOutlineSidebar: View {
                     outline: outline,
                     document: document,
                     currentPageIndex: $currentPageIndex,
-                    level: 0
+                    level: 0,
+                    onPageSelected: onPageSelected
                 )
                 .padding(.vertical, 8)
             } else {
@@ -43,6 +45,7 @@ struct OutlineTreeView: View {
     let document: PDFDocument?
     @Binding var currentPageIndex: Int
     let level: Int
+    var onPageSelected: ((Int) -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -52,7 +55,8 @@ struct OutlineTreeView: View {
                         outline: child,
                         document: document,
                         currentPageIndex: $currentPageIndex,
-                        level: level
+                        level: level,
+                        onPageSelected: onPageSelected
                     )
                 }
             }
@@ -65,6 +69,7 @@ struct OutlineItemView: View {
     let document: PDFDocument?
     @Binding var currentPageIndex: Int
     let level: Int
+    var onPageSelected: ((Int) -> Void)?
 
     @State private var isExpanded: Bool = true
 
@@ -130,7 +135,8 @@ struct OutlineItemView: View {
                     outline: outline,
                     document: document,
                     currentPageIndex: $currentPageIndex,
-                    level: level + 1
+                    level: level + 1,
+                    onPageSelected: onPageSelected
                 )
             }
         }
@@ -138,7 +144,7 @@ struct OutlineItemView: View {
 
     private func navigateToOutline() {
         if let index = pageIndex {
-            currentPageIndex = index
+            onPageSelected?(index)
         }
     }
 }

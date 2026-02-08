@@ -138,21 +138,31 @@ struct PDFReaderView: NSViewRepresentable {
     @Binding var scaleFactor: CGFloat
     @Binding var searchText: String
     @Binding var displayMode: PDFDisplayMode
+    /// 外部请求跳转到指定页面（通过工具栏、侧边栏等触发）
+    @Binding var requestedPageJump: Int?
+    /// 外部请求旋转（度数，正为顺时针，负为逆时针）
+    @Binding var requestedRotation: Int?
+    /// 外部请求缩放适合模式
+    @Binding var requestedZoomFit: ZoomFitMode?
     var onSelectionChanged: ((String?) -> Void)?
     var onContextAction: ((PDFContextAction, String) -> Void)?
     var onAnnotate: ((AnnotationType) -> Void)?
+    var onScaleChanged: ((CGFloat) -> Void)?
 
     func makeNSView(context: Context) -> CustomPDFView {
         let pdfView = CustomPDFView()
-        pdfView.autoScales = false // 禁用自动缩放，防止缩放重置
+        pdfView.autoScales = false
         pdfView.displayMode = .singlePageContinuous
         pdfView.displayDirection = .vertical
-        pdfView.backgroundColor = .textBackgroundColor
+        // 使用更柔和的背景色，深色模式下不那么刺眼
+        pdfView.backgroundColor = NSColor(named: "PDFBackground") ?? NSColor.windowBackgroundColor
         pdfView.delegate = context.coordinator
         pdfView.coordinator = context.coordinator
 
         // Enable text selection
         pdfView.displaysPageBreaks = true
+        // 设置页面间距
+        pdfView.pageBreakMargins = NSEdgeInsets(top: 8, left: 0, bottom: 8, right: 0)
 
         // Register for notifications
         NotificationCenter.default.addObserver(
@@ -169,6 +179,13 @@ struct PDFReaderView: NSViewRepresentable {
             object: pdfView
         )
 
+        NotificationCenter.default.addObserver(
+            context.coordinator,
+            selector: #selector(Coordinator.scaleChanged(_:)),
+            name: .PDFViewScaleChanged,
+            object: pdfView
+        )
+
         return pdfView
     }
 
@@ -178,28 +195,34 @@ struct PDFReaderView: NSViewRepresentable {
             pdfView.document = document
             if let doc = document, doc.pageCount > 0 {
                 pdfView.go(to: doc.page(at: 0)!)
-                // 设置初始缩放
                 pdfView.scaleFactor = scaleFactor
-                // 记录当前页面索引
-                context.coordinator.lastPageIndex = 0
+                context.coordinator.lastReportedPageIndex = 0
             }
         }
 
-        // Update scale factor only if significantly different
-        if abs(pdfView.scaleFactor - scaleFactor) > 0.01 {
+        // Update scale factor only if significantly different and not from user scroll
+        if abs(pdfView.scaleFactor - scaleFactor) > 0.01 && !context.coordinator.isUserZooming {
             pdfView.scaleFactor = scaleFactor
         }
+        context.coordinator.isUserZooming = false
 
         // Update display mode
-        pdfView.displayMode = displayMode
+        if pdfView.displayMode != displayMode {
+            pdfView.displayMode = displayMode
+        }
 
-        // 处理页面跳转（当 currentPageIndex 从外部改变时）
-        if context.coordinator.lastPageIndex != currentPageIndex {
-            context.coordinator.lastPageIndex = currentPageIndex
-            if let doc = pdfView.document, currentPageIndex >= 0 && currentPageIndex < doc.pageCount {
-                if let page = doc.page(at: currentPageIndex) {
+        // 处理外部请求的页面跳转（工具栏、侧边栏、大纲点击等）
+        if let jumpTo = requestedPageJump {
+            if let doc = pdfView.document, jumpTo >= 0 && jumpTo < doc.pageCount {
+                if let page = doc.page(at: jumpTo) {
+                    context.coordinator.isProgrammaticJump = true
                     pdfView.go(to: page)
+                    context.coordinator.lastReportedPageIndex = jumpTo
                 }
+            }
+            // 清除跳转请求
+            DispatchQueue.main.async {
+                self.requestedPageJump = nil
             }
         }
 
@@ -208,6 +231,33 @@ struct PDFReaderView: NSViewRepresentable {
             context.coordinator.lastSearchText = searchText
             performSearch(pdfView: pdfView, text: searchText)
         }
+
+        // 处理旋转请求
+        if let rotation = requestedRotation {
+            pdfView.rotateCurrentPage(by: rotation)
+            DispatchQueue.main.async {
+                self.requestedRotation = nil
+            }
+        }
+
+        // 处理缩放适合请求
+        if let fitMode = requestedZoomFit {
+            let newScale: CGFloat
+            switch fitMode {
+            case .fitWidth:
+                newScale = pdfView.calculateFitWidthScale()
+            case .fitPage:
+                newScale = pdfView.calculateFitPageScale()
+            }
+            pdfView.scaleFactor = newScale
+            DispatchQueue.main.async {
+                self.scaleFactor = newScale
+                self.requestedZoomFit = nil
+            }
+        }
+
+        // Store reference for keyboard handling
+        context.coordinator.pdfView = pdfView
     }
 
     private func performSearch(pdfView: PDFView, text: String) {
@@ -226,7 +276,13 @@ struct PDFReaderView: NSViewRepresentable {
     class Coordinator: NSObject, PDFViewDelegate {
         var parent: PDFReaderView
         var lastSearchText: String = ""
-        var lastPageIndex: Int = -1  // 用于追踪页面变化，避免循环
+        var lastReportedPageIndex: Int = -1
+        var isProgrammaticJump: Bool = false
+        var isUserZooming: Bool = false
+        weak var pdfView: CustomPDFView?
+
+        // 防抖计时器
+        private var pageChangeDebounceTimer: Timer?
 
         init(_ parent: PDFReaderView) {
             self.parent = parent
@@ -239,8 +295,28 @@ struct PDFReaderView: NSViewRepresentable {
                   let pageIndex = document.index(for: currentPage) as Int? else {
                 return
             }
-            DispatchQueue.main.async {
-                self.parent.currentPageIndex = pageIndex
+
+            // 如果是程序跳转，直接更新不做防抖
+            if isProgrammaticJump {
+                isProgrammaticJump = false
+                lastReportedPageIndex = pageIndex
+                DispatchQueue.main.async {
+                    self.parent.currentPageIndex = pageIndex
+                }
+                return
+            }
+
+            // 用户滚动时使用防抖，避免频繁更新导致的跳动
+            pageChangeDebounceTimer?.invalidate()
+            pageChangeDebounceTimer = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: false) { [weak self] _ in
+                guard let self = self else { return }
+                // 只有当页面确实变化时才更新
+                if self.lastReportedPageIndex != pageIndex {
+                    self.lastReportedPageIndex = pageIndex
+                    DispatchQueue.main.async {
+                        self.parent.currentPageIndex = pageIndex
+                    }
+                }
             }
         }
 
@@ -249,6 +325,14 @@ struct PDFReaderView: NSViewRepresentable {
             let selectedText = pdfView.currentSelection?.string
             DispatchQueue.main.async {
                 self.parent.onSelectionChanged?(selectedText)
+            }
+        }
+
+        @objc func scaleChanged(_ notification: Notification) {
+            guard let pdfView = notification.object as? PDFView else { return }
+            isUserZooming = true
+            DispatchQueue.main.async {
+                self.parent.onScaleChanged?(pdfView.scaleFactor)
             }
         }
 
@@ -265,6 +349,7 @@ struct PDFReaderView: NSViewRepresentable {
         }
 
         deinit {
+            pageChangeDebounceTimer?.invalidate()
             NotificationCenter.default.removeObserver(self)
         }
     }
@@ -628,5 +713,44 @@ extension PDFView {
 
     func zoomToFit() {
         autoScales = true
+    }
+
+    /// 计算适合宽度的缩放比例
+    func calculateFitWidthScale() -> CGFloat {
+        guard let page = currentPage else { return 1.0 }
+        let pageRect = page.bounds(for: displayBox)
+        let viewWidth = bounds.width - 40 // 留一些边距
+        return viewWidth / pageRect.width
+    }
+
+    /// 计算适合页面的缩放比例
+    func calculateFitPageScale() -> CGFloat {
+        guard let page = currentPage else { return 1.0 }
+        let pageRect = page.bounds(for: displayBox)
+        let viewWidth = bounds.width - 40
+        let viewHeight = bounds.height - 40
+        let widthScale = viewWidth / pageRect.width
+        let heightScale = viewHeight / pageRect.height
+        return min(widthScale, heightScale)
+    }
+
+    /// 旋转当前页面
+    func rotateCurrentPage(by degrees: Int) {
+        guard let page = currentPage else { return }
+        let currentRotation = page.rotation
+        let newRotation = (currentRotation + degrees + 360) % 360
+        page.rotation = newRotation
+    }
+
+    /// 旋转所有页面
+    func rotateAllPages(by degrees: Int) {
+        guard let document = document else { return }
+        for i in 0..<document.pageCount {
+            if let page = document.page(at: i) {
+                let currentRotation = page.rotation
+                let newRotation = (currentRotation + degrees + 360) % 360
+                page.rotation = newRotation
+            }
+        }
     }
 }

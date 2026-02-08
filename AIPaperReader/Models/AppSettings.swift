@@ -16,7 +16,7 @@ class AppSettings: ObservableObject {
 
     @AppStorage("llm.provider") var llmProviderRaw: String = LLMProvider.siliconflow.rawValue
     @AppStorage("llm.baseURL") var llmBaseURL: String = LLMProvider.siliconflow.defaultBaseURL
-    @AppStorage("llm.modelName") var llmModelName: String = "Qwen/Qwen2.5-7B-Instruct"
+    @AppStorage("llm.modelName") var llmModelName: String = "Pro/deepseek-ai/DeepSeek-V3.2"
     @AppStorage("llm.temperature") var llmTemperature: Double = 0.7
     @AppStorage("llm.maxTokens") var llmMaxTokens: Int = 4096
     @AppStorage("llm.contextTokenBudget") var llmContextTokenBudget: Int = 16000
@@ -50,10 +50,34 @@ class AppSettings: ObservableObject {
 
     @AppStorage("embedding.baseURL") var embeddingBaseURL: String = "https://api.siliconflow.cn/v1"
     @AppStorage("embedding.modelName") var embeddingModelName: String = "BAAI/bge-m3"
+    @AppStorage("embedding.useSharedKey") var embeddingUseSharedKey: Bool = true
+    @AppStorage("embedding.selectedModel") var embeddingSelectedModel: String = ""
 
     var embeddingApiKey: String {
         get { SecureStorage.read(key: "embedding.apiKey") ?? "" }
         set { SecureStorage.save(key: "embedding.apiKey", value: newValue) }
+    }
+
+    /// 获取生效的 Embedding 配置
+    /// 当 useSharedKey 开启且 provider 支持 embedding 时，自动使用 LLM 的 API Key 和 provider 的默认 embedding 配置
+    var effectiveEmbeddingConfig: EmbeddingConfig {
+        if embeddingUseSharedKey && llmProvider.supportsEmbedding {
+            // 使用用户选择的模型，如果没选择则使用默认模型
+            let modelName = embeddingSelectedModel.isEmpty
+                ? llmProvider.defaultEmbeddingModel
+                : embeddingSelectedModel
+            return EmbeddingConfig(
+                baseURL: llmProvider.defaultEmbeddingBaseURL,
+                apiKey: llmApiKey,
+                modelName: modelName
+            )
+        } else {
+            return EmbeddingConfig(
+                baseURL: embeddingBaseURL,
+                apiKey: embeddingApiKey,
+                modelName: embeddingModelName
+            )
+        }
     }
 
     // MARK: - System Prompt
@@ -164,9 +188,9 @@ class AppSettings: ObservableObject {
 
     @AppStorage("chat.customQuickActions") var customQuickActionsData: Data = Data()
 
-    var customQuickActions: [PresetQuestion] {
+    var customQuickActions: [CustomQuickAction] {
         get {
-            if let actions = try? JSONDecoder().decode([PresetQuestion].self, from: customQuickActionsData) {
+            if let actions = try? JSONDecoder().decode([CustomQuickAction].self, from: customQuickActionsData) {
                 return actions
             }
             return []
@@ -178,17 +202,29 @@ class AppSettings: ObservableObject {
         }
     }
 
-    func addCustomQuickAction(_ question: String) {
+    func addCustomQuickAction(_ action: CustomQuickAction) {
         var actions = customQuickActions
-        actions.append(PresetQuestion.custom(chinese: question))
+        actions.append(action)
         customQuickActions = actions
     }
 
-    func removeCustomQuickAction(at index: Int) {
+    func updateCustomQuickAction(_ action: CustomQuickAction) {
         var actions = customQuickActions
-        guard index >= 0 && index < actions.count else { return }
-        actions.remove(at: index)
+        if let index = actions.firstIndex(where: { $0.id == action.id }) {
+            actions[index] = action
+            customQuickActions = actions
+        }
+    }
+
+    func removeCustomQuickAction(id: UUID) {
+        var actions = customQuickActions
+        actions.removeAll { $0.id == id }
         customQuickActions = actions
+    }
+
+    /// 获取所有快捷操作（内置 + 自定义）
+    var allQuickActions: [CustomQuickAction] {
+        return CustomQuickAction.builtInActions + customQuickActions
     }
 
     // MARK: - LLM Config Helper
@@ -261,4 +297,70 @@ class SecureStorage {
         }
         return output
     }
+}
+
+// MARK: - Custom Quick Action Model
+
+/// 自定义快捷操作
+struct CustomQuickAction: Identifiable, Codable, Equatable, Hashable {
+    var id: UUID = UUID()
+    var name: String           // 显示名称
+    var icon: String           // SF Symbol 名称
+    var prompt: String         // Prompt 模板，使用 {selection} 作为选中文本的占位符
+    var isBuiltIn: Bool = false
+    var isEnabled: Bool = true
+
+    /// 内置的快捷操作
+    static let builtInActions: [CustomQuickAction] = [
+        CustomQuickAction(
+            name: "翻译",
+            icon: "character.book.closed",
+            prompt: AppSettings.defaultPromptTranslate,
+            isBuiltIn: true
+        ),
+        CustomQuickAction(
+            name: "解释",
+            icon: "questionmark.circle",
+            prompt: AppSettings.defaultPromptExplain,
+            isBuiltIn: true
+        ),
+        CustomQuickAction(
+            name: "总结",
+            icon: "doc.text",
+            prompt: AppSettings.defaultPromptSummarize,
+            isBuiltIn: true
+        )
+    ]
+
+    /// 处理 prompt 模板，替换占位符
+    func processPrompt(selection: String) -> String {
+        prompt.replacingOccurrences(of: "{selection}", with: selection)
+    }
+}
+
+// MARK: - Available SF Symbols for Quick Actions
+
+extension CustomQuickAction {
+    static let availableIcons: [String] = [
+        "character.book.closed",
+        "questionmark.circle",
+        "doc.text",
+        "text.bubble",
+        "lightbulb",
+        "brain",
+        "wand.and.stars",
+        "sparkles",
+        "text.magnifyingglass",
+        "doc.text.magnifyingglass",
+        "arrow.triangle.2.circlepath",
+        "checkmark.circle",
+        "pencil",
+        "highlighter",
+        "list.bullet",
+        "chart.bar",
+        "function",
+        "number",
+        "textformat",
+        "globe"
+    ]
 }

@@ -15,7 +15,7 @@ class LLMServiceFactory {
         switch config.provider {
         case .ollama:
             return OllamaService(config: config)
-        case .openaiCompatible, .siliconflow, .deepseek, .bioInfoArk:
+        case .openaiCompatible, .siliconflow, .deepseek, .bioInfoArk, .threeZeroTwo:
             return OpenAIService(config: config)
         }
     }

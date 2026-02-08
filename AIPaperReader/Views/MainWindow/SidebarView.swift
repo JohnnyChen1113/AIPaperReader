@@ -24,6 +24,7 @@ struct SidebarView: View {
     let document: PDFDocument?
     @Binding var currentPageIndex: Int
     @Binding var selectedTab: SidebarTab
+    var onPageSelected: ((Int) -> Void)?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -46,13 +47,15 @@ struct SidebarView: View {
                 case .thumbnails:
                     PDFThumbnailSidebar(
                         document: document,
-                        currentPageIndex: $currentPageIndex
+                        currentPageIndex: $currentPageIndex,
+                        onPageSelected: onPageSelected
                     )
 
                 case .outline:
                     PDFOutlineSidebar(
                         document: document,
-                        currentPageIndex: $currentPageIndex
+                        currentPageIndex: $currentPageIndex,
+                        onPageSelected: onPageSelected
                     )
                 }
             }

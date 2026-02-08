@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SwiftUI
 
 enum LLMProvider: String, Codable, CaseIterable, Identifiable {
     case openaiCompatible = "OpenAI Compatible"
@@ -13,6 +14,7 @@ enum LLMProvider: String, Codable, CaseIterable, Identifiable {
     case siliconflow = "SiliconFlow"
     case deepseek = "DeepSeek"
     case bioInfoArk = "BioInfoArk"
+    case threeZeroTwo = "302.AI"
 
     var id: String { rawValue }
 
@@ -28,6 +30,8 @@ enum LLMProvider: String, Codable, CaseIterable, Identifiable {
             return "https://api.deepseek.com"
         case .bioInfoArk:
             return "https://oa.ai01.org/v1"
+        case .threeZeroTwo:
+            return "https://api.302.ai"
         }
     }
 
@@ -43,6 +47,8 @@ enum LLMProvider: String, Codable, CaseIterable, Identifiable {
             return "https://platform.deepseek.com/api_keys"
         case .bioInfoArk:
             return "https://www.bioinfoark.com"
+        case .threeZeroTwo:
+            return "https://302.ai"
         }
     }
 
@@ -59,27 +65,288 @@ enum LLMProvider: String, Codable, CaseIterable, Identifiable {
         rawValue
     }
 
-    /// 默认推荐的免费模型
+    /// 服务商图标
+    var providerIcon: String {
+        switch self {
+        case .siliconflow: return "cpu"
+        case .deepseek: return "brain.head.profile"
+        case .openaiCompatible: return "globe"
+        case .ollama: return "desktopcomputer"
+        case .bioInfoArk: return "server.rack"
+        case .threeZeroTwo: return "sparkle"
+        }
+    }
+
+    /// 服务商品牌色
+    var brandColor: Color {
+        switch self {
+        case .siliconflow: return .blue
+        case .deepseek: return .indigo
+        case .openaiCompatible: return .green
+        case .ollama: return .gray
+        case .bioInfoArk: return .purple
+        case .threeZeroTwo: return .orange
+        }
+    }
+
+    /// 服务商描述
+    var providerDescription: String {
+        switch self {
+        case .siliconflow:
+            return "国内服务，有免费额度，支持多种开源模型"
+        case .deepseek:
+            return "DeepSeek 官方 API，性价比高"
+        case .openaiCompatible:
+            return "OpenAI 或其他兼容 API"
+        case .ollama:
+            return "本地运行，完全免费，需要自行部署"
+        case .bioInfoArk:
+            return "国内直连，支持 GPT-5/Claude-4.5 等顶尖模型"
+        case .threeZeroTwo:
+            return "聚合平台，支持 800+ 模型，覆盖所有主流 AI"
+        }
+    }
+
+    /// 默认推荐的模型（最新主流模型）
     var defaultFreeModels: [String] {
         switch self {
         case .openaiCompatible:
-            return ["gpt-4o-mini", "gpt-3.5-turbo"]
+            return ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"]
         case .ollama:
-            return ["llama3.2", "qwen2.5", "mistral"]
+            return ["llama3.2", "qwen2.5", "gemma2", "mistral"]
         case .siliconflow:
-            // 硅基流动免费/推荐模型
             return [
-                "deepseek-ai/DeepSeek-V3",
-                "Qwen/Qwen2.5-72B-Instruct",
-                "THUDM/GLM-4-9B-0414",
-                "Qwen/Qwen2.5-7B-Instruct",
-                "Qwen/Qwen2.5-Coder-7B-Instruct"
+                "Pro/deepseek-ai/DeepSeek-V3.2",
+                "Pro/deepseek-ai/DeepSeek-R1",
+                "Pro/moonshotai/Kimi-K2.5",
+                "Qwen/Qwen3-235B-A22B-Instruct-2507",
+                "Pro/zai-org/GLM-4.7",
+                "Pro/deepseek-ai/DeepSeek-V3"
             ]
         case .deepseek:
             return ["deepseek-chat", "deepseek-reasoner"]
         case .bioInfoArk:
-            return ["gpt-4o", "gpt-4o-mini", "claude-3-5-sonnet-20240620", "gemini-1.5-pro"]
+            return [
+                "gpt-5",
+                "claude-sonnet-4-5",
+                "gemini-2.5-pro",
+                "grok-3",
+                "o4-mini",
+                "gpt-4.1"
+            ]
+        case .threeZeroTwo:
+            return [
+                "gpt-5.2",
+                "claude-opus-4-6",
+                "gemini-2.5-pro",
+                "deepseek-v3.2",
+                "grok-4.1",
+                "qwen3-max"
+            ]
         }
+    }
+
+    // MARK: - Embedding 配置
+
+    /// 是否支持 Embedding API
+    var supportsEmbedding: Bool {
+        switch self {
+        case .deepseek:
+            return false
+        default:
+            return true
+        }
+    }
+
+    /// 默认 Embedding API 基础 URL
+    var defaultEmbeddingBaseURL: String {
+        switch self {
+        case .siliconflow:
+            return "https://api.siliconflow.cn/v1"
+        case .openaiCompatible:
+            return "https://api.openai.com/v1"
+        case .ollama:
+            return "http://localhost:11434/v1"
+        case .bioInfoArk:
+            return "https://oa.ai01.org/v1"
+        case .threeZeroTwo:
+            return "https://api.302.ai/v1"
+        case .deepseek:
+            return ""
+        }
+    }
+
+    /// 默认 Embedding 模型名称
+    var defaultEmbeddingModel: String {
+        switch self {
+        case .siliconflow:
+            return "BAAI/bge-m3"
+        case .openaiCompatible, .bioInfoArk, .threeZeroTwo:
+            return "text-embedding-3-small"
+        case .ollama:
+            return "nomic-embed-text"
+        case .deepseek:
+            return ""
+        }
+    }
+
+    /// 可用的 Embedding 模型列表（供用户选择）
+    var availableEmbeddingModels: [String] {
+        switch self {
+        case .siliconflow:
+            return ["BAAI/bge-m3", "Qwen/Qwen3-Embedding-8B"]
+        case .openaiCompatible, .bioInfoArk, .threeZeroTwo:
+            return ["text-embedding-3-small", "text-embedding-3-large"]
+        case .ollama:
+            return ["nomic-embed-text", "mxbai-embed-large"]
+        case .deepseek:
+            return []
+        }
+    }
+}
+
+// MARK: - Model Metadata System
+
+/// 模型能力标签
+enum ModelTag: String, CaseIterable {
+    case free
+    case reasoning
+    case fast
+    case coding
+    case multimodal
+    case large
+
+    var displayName: String {
+        switch self {
+        case .free: return "免费"
+        case .reasoning: return "推理"
+        case .fast: return "快速"
+        case .coding: return "编程"
+        case .multimodal: return "多模态"
+        case .large: return "大参数"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .free: return .green
+        case .reasoning: return .purple
+        case .fast: return .orange
+        case .coding: return .blue
+        case .multimodal: return .pink
+        case .large: return .indigo
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .free: return "gift"
+        case .reasoning: return "brain"
+        case .fast: return "bolt.fill"
+        case .coding: return "chevron.left.forwardslash.chevron.right"
+        case .multimodal: return "eye"
+        case .large: return "chart.bar.fill"
+        }
+    }
+}
+
+/// 模型元数据
+struct ModelMetadata {
+    let displayName: String
+    let icon: String
+    let tags: [ModelTag]
+    let providerName: String
+
+    /// 根据模型 ID 获取元数据
+    static func metadata(for modelId: String, provider: LLMProvider? = nil) -> ModelMetadata {
+        let id = modelId.lowercased()
+        let shortName = modelId.components(separatedBy: "/").last ?? modelId
+
+        let icon = inferIcon(from: id)
+        let tags = inferTags(from: id, provider: provider)
+        let displayName = inferDisplayName(from: shortName)
+        let providerName = inferProvider(from: modelId)
+
+        return ModelMetadata(
+            displayName: displayName,
+            icon: icon,
+            tags: tags,
+            providerName: providerName
+        )
+    }
+
+    private static func inferIcon(from id: String) -> String {
+        if id.contains("claude") { return "sparkles" }
+        if id.contains("gpt") || id.hasPrefix("o1") || id.hasPrefix("o3") || id.hasPrefix("o4") { return "brain.head.profile" }
+        if id.contains("gemini") { return "diamond" }
+        if id.contains("deepseek") { return "water.waves" }
+        if id.contains("qwen") || id.contains("qwq") { return "cloud" }
+        if id.contains("glm") { return "cube" }
+        if id.contains("llama") { return "hare" }
+        if id.contains("grok") { return "bolt" }
+        if id.contains("kimi") || id.contains("moonshot") { return "moon.stars" }
+        if id.contains("mistral") { return "wind" }
+        if id.contains("ernie") { return "leaf" }
+        return "cpu"
+    }
+
+    private static func inferTags(from id: String, provider: LLMProvider?) -> [ModelTag] {
+        var tags: [ModelTag] = []
+
+        if id.contains("reasoner") || id.contains("-r1") || id.contains("thinking") ||
+           id.hasPrefix("o1") || id.hasPrefix("o3") || id.hasPrefix("o4") ||
+           id.contains("qwq") || id.contains("z1") {
+            tags.append(.reasoning)
+        }
+
+        if id.contains("coder") || id.contains("codex") || id.contains("code") {
+            tags.append(.coding)
+        }
+
+        if id.contains("vl") || id.contains("vision") || id.contains("4v") ||
+           id.contains("omni") {
+            tags.append(.multimodal)
+        }
+
+        if id.contains("mini") || id.contains("nano") || id.contains("flash") ||
+           id.contains("lite") || id.contains("turbo") || id.contains("fast") ||
+           id.contains("air") {
+            tags.append(.fast)
+        }
+
+        if id.contains("235b") || id.contains("480b") || id.contains("405b") ||
+           id.contains("opus") || id.contains("max") || id.contains("72b") {
+            tags.append(.large)
+        }
+
+        if provider == .siliconflow && id.hasPrefix("pro/") {
+            tags.append(.free)
+        }
+
+        return tags
+    }
+
+    private static func inferDisplayName(from name: String) -> String {
+        var result = name
+        if result.hasSuffix("-Instruct") {
+            result = String(result.dropLast("-Instruct".count))
+        }
+        return result
+    }
+
+    private static func inferProvider(from modelId: String) -> String {
+        let id = modelId.lowercased()
+        if id.contains("gpt") || id.hasPrefix("o1") || id.hasPrefix("o3") || id.hasPrefix("o4") { return "OpenAI" }
+        if id.contains("claude") { return "Anthropic" }
+        if id.contains("gemini") { return "Google" }
+        if id.contains("deepseek") { return "DeepSeek" }
+        if id.contains("qwen") || id.contains("qwq") { return "Alibaba" }
+        if id.contains("glm") { return "Zhipu" }
+        if id.contains("llama") { return "Meta" }
+        if id.contains("grok") { return "xAI" }
+        if id.contains("kimi") || id.contains("moonshot") { return "Moonshot" }
+        if id.contains("mistral") { return "Mistral" }
+        return ""
     }
 }
 
@@ -115,7 +382,7 @@ struct LLMConfig: Codable, Equatable {
         provider: LLMProvider = .siliconflow,
         baseURL: String? = nil,
         apiKey: String = "",
-        modelName: String = "deepseek-ai/DeepSeek-V3",
+        modelName: String = "Pro/deepseek-ai/DeepSeek-V3.2",
         temperature: Double = 0.7,
         maxTokens: Int = 4096,
         contextTokenBudget: Int = 16000,

@@ -29,10 +29,11 @@ struct PresetQuestion: Identifiable, Codable, Equatable {
     var id: UUID = UUID()
     var english: String
     var chinese: String
+    var icon: String = "arrow.right.circle"
     var isBuiltIn: Bool = true
 
     static func custom(chinese: String) -> PresetQuestion {
-        PresetQuestion(english: chinese, chinese: chinese, isBuiltIn: false)
+        PresetQuestion(english: chinese, chinese: chinese, icon: "star.fill", isBuiltIn: false)
     }
 }
 
@@ -75,35 +76,39 @@ class ChatViewModel: ObservableObject {
     static let builtInQuestions: [PresetQuestion] = [
         PresetQuestion(
             english: "Summarize the main contributions of this paper",
-            chinese: "总结这篇论文的主要贡献"
+            chinese: "总结这篇论文的主要贡献",
+            icon: "star.fill"
         ),
         PresetQuestion(
             english: "What is the research methodology used?",
-            chinese: "这篇论文使用了什么研究方法？"
+            chinese: "这篇论文使用了什么研究方法？",
+            icon: "testtube.2"
         ),
         PresetQuestion(
             english: "List the main conclusions",
-            chinese: "列出主要结论"
+            chinese: "列出主要结论",
+            icon: "checkmark.seal.fill"
         ),
         PresetQuestion(
             english: "What are the limitations of this study?",
-            chinese: "这项研究有哪些局限性？"
+            chinese: "这项研究有哪些局限性？",
+            icon: "exclamationmark.triangle.fill"
         ),
         PresetQuestion(
             english: "Explain the key findings",
-            chinese: "解释主要发现"
+            chinese: "解释主要发现",
+            icon: "lightbulb.fill"
         ),
         PresetQuestion(
             english: "How is the introduction written? What writing tips can I learn?",
-            chinese: "Introduction 是如何行文的？我可以学到哪些写作技巧？"
+            chinese: "Introduction 是如何行文的？我可以学到哪些写作技巧？",
+            icon: "pencil.and.outline"
         )
     ]
 
-    /// 获取所有预设问题（内置 + 用户自定义）
+    /// 获取所有预设问题（仅内置问题，自定义操作现在是独立的 CustomQuickAction）
     static var allPresetQuestions: [PresetQuestion] {
-        var questions = builtInQuestions
-        questions.append(contentsOf: AppSettings.shared.customQuickActions)
-        return questions
+        return builtInQuestions
     }
 
     /// 旧版兼容：只返回英文问题
@@ -268,15 +273,111 @@ class ChatViewModel: ObservableObject {
         currentStreamingText = ""
         errorMessage = nil
         contextManager.clear()
-        
-        // Clear from database too? Or just create new session?
-        // For now, let's just clear memory. 
-        // If user wants to delete history, we need a dedicated delete function.
-        // But the previous behavior was "reset for new document".
-        // With persistence, "clearChat" usually means "Start New Conversation" or "Delete".
-        // Let's assume it's "Start Fresh" for now, but keep old session in history?
-        // Actually, ContentView calls this on doc change.
-        currentSession = nil 
+        currentSession = nil
+    }
+
+    /// 开始新的聊天会话（保留旧的历史）
+    func startNewChat(for documentId: String) {
+        guard let context = modelContext else { return }
+
+        // 创建新的会话
+        let newSession = ChatSession(documentId: documentId, title: "New Chat \(Date().formatted(date: .abbreviated, time: .shortened))")
+        context.insert(newSession)
+        self.currentSession = newSession
+        self.messages = []
+
+        do {
+            try context.save()
+        } catch {
+            print("Failed to create new session: \(error)")
+        }
+    }
+
+    /// 删除指定的聊天会话
+    func deleteSession(_ session: ChatSession) {
+        guard let context = modelContext else { return }
+
+        // 如果删除的是当前会话，清空当前聊天
+        if session.id == currentSession?.id {
+            messages.removeAll()
+            currentSession = nil
+        }
+
+        context.delete(session)
+
+        do {
+            try context.save()
+        } catch {
+            print("Failed to delete session: \(error)")
+        }
+    }
+
+    /// 获取当前文档的所有历史会话
+    func fetchSessions(for documentId: String) -> [ChatSession] {
+        guard let context = modelContext else { return [] }
+
+        let descriptor = FetchDescriptor<ChatSession>(
+            predicate: #Predicate { $0.documentId == documentId },
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+
+        do {
+            return try context.fetch(descriptor)
+        } catch {
+            print("Failed to fetch sessions: \(error)")
+            return []
+        }
+    }
+
+    /// 切换到指定的会话
+    func switchToSession(_ session: ChatSession) {
+        self.currentSession = session
+        // 按时间排序消息
+        let sortedMessages = session.messages.sorted { $0.timestamp < $1.timestamp }
+        self.messages = sortedMessages.map { model in
+            if model.role == .user {
+                return ChatMessage.user(model.content)
+            } else {
+                return ChatMessage.assistant(model.content)
+            }
+        }
+    }
+
+    // MARK: - Chat Export
+
+    /// 将当前聊天导出为 Markdown 格式
+    func exportChatAsMarkdown() -> String {
+        var md = "# 聊天记录\n\n"
+        if let session = currentSession {
+            md += "- 文档: \(session.documentId)\n"
+            md += "- 日期: \(Date().formatted(date: .long, time: .shortened))\n\n"
+        }
+        md += "---\n\n"
+
+        for message in messages {
+            switch message.role {
+            case .user:
+                md += "## 🧑 用户\n\n\(message.content)\n\n---\n\n"
+            case .assistant:
+                md += "## 🤖 AI 助手\n\n\(message.content)\n\n---\n\n"
+            case .system:
+                break
+            }
+        }
+        return md
+    }
+
+    /// 导出聊天记录到文件
+    func exportChatToFile() {
+        guard !messages.isEmpty else { return }
+        let markdown = exportChatAsMarkdown()
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.plainText]
+        panel.nameFieldStringValue = "chat-export-\(Date().formatted(date: .numeric, time: .omitted)).md"
+        panel.begin { response in
+            guard response == .OK, let url = panel.url else { return }
+            try? markdown.write(to: url, atomically: true, encoding: .utf8)
+        }
     }
 
     func updateTokenEstimate(document: PDFDocument?, currentPageIndex: Int) {
@@ -287,8 +388,22 @@ class ChatViewModel: ObservableObject {
 
         Task {
             let content = await extractPDFContent(from: document, currentPageIndex: currentPageIndex, query: "")
+
             await MainActor.run {
-                estimatedTokens = textExtractor.estimateTokenCount(content)
+                // 计算 PDF 内容的 token
+                let contentTokens = textExtractor.estimateTokenCount(content)
+
+                // 计算 system prompt 的 token（不包含 PDF 内容占位符）
+                let systemPromptBase = settings.systemPrompt.replacingOccurrences(of: "{pdf_content}", with: "")
+                let systemPromptTokens = textExtractor.estimateTokenCount(systemPromptBase)
+
+                // 计算历史对话的 token
+                let historyTokens = messages.reduce(0) { total, message in
+                    total + textExtractor.estimateTokenCount(message.content)
+                }
+
+                // 总计
+                estimatedTokens = contentTokens + systemPromptTokens + historyTokens
             }
         }
     }
@@ -296,23 +411,28 @@ class ChatViewModel: ObservableObject {
     // MARK: - Private Methods
 
     private func extractPDFContent(from document: PDFDocument, currentPageIndex: Int, query: String) async -> String {
+        // 捕获选中的文本（用完后清空）
+        let selectionText = currentSelection
+
         switch pageRangeOption {
         case .all:
             // Try RAG first if we have context
             if !query.isEmpty {
                 // Smart Context: If text is selected, prioritize it!
-                if let selection = currentSelection, !selection.isEmpty {
+                if let selection = selectionText, !selection.isEmpty {
                     print("Using Smart Context (Selection)")
-                    return "--- User Selected Text (High Prority) ---\n\(selection)\n\n--- Document Context ---\n" + textExtractor.extractTextWithBudget(from: document, tokenBudget: settings.llmContextTokenBudget / 2).text
+                    // 清空选择，避免后续提问仍然使用
+                    await MainActor.run { self.currentSelection = nil }
+                    return "--- User Selected Text (High Priority) ---\n\(selection)\n\n--- Document Context ---\n" + textExtractor.extractTextWithBudget(from: document, tokenBudget: settings.llmContextTokenBudget / 2).text
                 }
-            
+
                 let relevantChunks = await contextManager.retrieve(query: query)
                 if !relevantChunks.isEmpty {
                     print("Using RAG: Found \(relevantChunks.count) relevant chunks")
                     return relevantChunks.map { "--- Page \($0.pageRange.lowerBound + 1)-\($0.pageRange.upperBound) ---\n\($0.text)" }.joined(separator: "\n\n")
                 }
             }
-            
+
             // Fallback to token budget extraction (e.g. for summarization or no matches)
             let result = textExtractor.extractTextWithBudget(
                 from: document,

@@ -57,11 +57,13 @@ struct PDFThumbnailSidebar: View {
     let document: PDFDocument?
     @Binding var currentPageIndex: Int
     let thumbnailSize: CGSize
+    var onPageSelected: ((Int) -> Void)?
 
-    init(document: PDFDocument?, currentPageIndex: Binding<Int>, thumbnailSize: CGSize = CGSize(width: 120, height: 160)) {
+    init(document: PDFDocument?, currentPageIndex: Binding<Int>, thumbnailSize: CGSize = CGSize(width: 120, height: 160), onPageSelected: ((Int) -> Void)? = nil) {
         self.document = document
         self._currentPageIndex = currentPageIndex
         self.thumbnailSize = thumbnailSize
+        self.onPageSelected = onPageSelected
     }
 
     var body: some View {
@@ -78,7 +80,7 @@ struct PDFThumbnailSidebar: View {
                             )
                             .id(index)
                             .onTapGesture {
-                                currentPageIndex = index
+                                onPageSelected?(index)
                             }
                         }
                     }
